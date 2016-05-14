@@ -5,12 +5,13 @@ import random
 import sys
 from matplotlib import pyplot as plt
 
+mu = None
+sigma = None
+
 def sample_Q(x):
     return x + random.uniform(-1,1)
 
 def unnormalized_normal(x):
-    sigma = 10
-    mu = 40
     return np.exp(
         - (
             (x - mu) ** 2
@@ -45,9 +46,13 @@ def plot(xs):
     plt.hist(xs,bins=200)
     plt.show()
 
-def main(howmany=1000):
-    xs = many_samples(howmany=howmany)
+def main():
+    global mu
+    mu = float(sys.argv[1])
+    global sigma
+    sigma = float(sys.argv[2])
+    xs = many_samples(howmany=int(sys.argv[3]))
     plot(xs)
 
 if __name__=="__main__":
-    main(howmany=int(sys.argv[1]))
+    main()
