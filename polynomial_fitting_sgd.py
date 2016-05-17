@@ -7,15 +7,21 @@ true_theta = None
 num_epochs = 10
 eta = None
 max_degree = 3
-def f(xs,_theta):
-    ret = _theta[0] + (_theta[1] * xs) + (_theta[2] * (xs ** 2)) + (_theta[3] * (xs ** 3))
+noise_level = 0.000001#0.1
+
+amount_points = 250
+def f(x,_theta):
+    ret = sum([
+        _theta[degree] * (x ** degree)
+        for degree
+        in range(max_degree+1)
+    ])
     return ret
 
 def generate_dataset():
     global true_theta
-    amount_points = 250
     xs = np.random.normal(0,2,amount_points)
-    noise = np.random.normal(0,0.1,amount_points)
+    noise = np.random.normal(0,noise_level,amount_points)
     ys = f(xs,true_theta) + noise
     return xs,ys
 
@@ -32,7 +38,7 @@ def grad_loss(_theta,xi,yi):
     global max_degree
     f_xi = f(xi,_theta)
 
-    return 2 * ( (- yi) + f_xi) * np.array([
+    return 2 * ( f_xi - yi) * np.array([
         (xi ** degree)
         for degree
         in range(max_degree+1)
