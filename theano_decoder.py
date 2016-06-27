@@ -7,9 +7,10 @@ from tqdm import trange,tqdm
 import numpy as np
 from sklearn.preprocessing import normalize
 import sklearn.svm
-
-theano.config.exception_verbosity="high"
-theano.config.optimizer='None'
+import time
+#theano.config.exception_verbosity="high"
+#theano.config.optimizer='None'
+theano.config.optimizer='fast_run'
 train_filename = 'ionosphere/ionosphere.data'
 lr_begin = 0.5
 lr_annealing_T=1
@@ -18,6 +19,17 @@ n_epochs = 10000
 sigma_x = 1.
 sigma_z = 1e4
 nonlinearity = T.nnet.sigmoid
+
+class Logger():
+    def __init__(self):
+        self.filename = "theano_decoder_"+str(time.time())+".log"
+        self.f = open(self.filename,'w')
+
+    def __call__(self, *args):
+        print(*args, flush=True)
+        print(*args,file=self.f, flush=True)
+
+log = Logger()
 
 def calculate_lr(t):
     # decaying learning rate with annealing
@@ -84,7 +96,7 @@ def step(z, x, Ws_vals, grad_fn):
     for curr_W, curr_grad in zip(Ws_vals,Ws_grads):
         update(curr_W, curr_grad)
     #if np.mean(np.abs(z_grads)) > 1e-4:
-    #    print(z_grads)
+    #    log(z_grads)
     update(z,z_grads)
 
 def train(Z, X, Ws_vals, grad_fn,repeat=1):
@@ -109,13 +121,13 @@ def test_classifier(Z,Y):
     classifier = sklearn.svm.SVC(kernel='linear')
     classifier.fit(Z,Y[:,0])
     svc_score = classifier.score(Z,Y[:,0])
-    print("SVC score: %s"%svc_score)
+    log("SVC score: %s"%svc_score)
 
 def main():
     np.set_printoptions(precision=4, suppress=True)
     X,Y,X_test,Y_test = load_data()
     x_dim = X.shape[1]
-    latent_dim=2
+    latent_dim=3
     Z = (np.random.random((X.shape[0],latent_dim))-0.5) * 1
     H1=5# dimensionality of hidden layer
     H2=17# dimensionality of hidden layer
@@ -135,14 +147,14 @@ def main():
 
     def summary():
         total_nll = nll_sum(Z,X,Ws_vals,nll_fn)
-        print("epoch %d"%epoch)
-        print("lr %f"%lr)
-        print("total nll: %f"%total_nll)
-        print("mean Z: %f"%np.mean(Z))
-        print("mean abs Z: %f"%np.mean(np.abs(Z)))
-        print("std Z: %f"%np.std(Z))
-        print("means Ws: %s"%([np.mean(curr) for curr in Ws_vals]))
-        print("stds Ws: %s"%([np.std(curr) for curr in Ws_vals]))
+        log("epoch %d"%epoch)
+        log("lr %f"%lr)
+        log("total nll: %f"%total_nll)
+        log("mean Z: %f"%np.mean(Z))
+        log("mean abs Z: %f"%np.mean(np.abs(Z)))
+        log("std Z: %f"%np.std(Z))
+        log("means Ws: %s"%([np.mean(curr) for curr in Ws_vals]))
+        log("stds Ws: %s"%([np.std(curr) for curr in Ws_vals]))
 
     # train
     for epoch in range(n_epochs):
@@ -151,7 +163,7 @@ def main():
         Z,X,Y = shuffle(Z,X,Y)
         summary()
         test_classifier(Z,Y)
-        train(Z,X,Ws_vals,grad_fn,repeat=1)
+        train(Z,X,Ws_vals,grad_fn,repeat=10)
         np.save("theano_decoder_Z.npy",Z)
     summary()
 if __name__=="__main__":
