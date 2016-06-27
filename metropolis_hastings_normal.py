@@ -32,7 +32,7 @@ def sample():
             x = x_next
         else:
             # reject
-            pass # no action taken
+            pass # no action taken, will return copy of previous sample
 
 
 def many_samples(howmany=1000):
@@ -56,3 +56,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
