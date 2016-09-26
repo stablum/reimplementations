@@ -12,12 +12,12 @@ import time
 #theano.config.optimizer='None'
 theano.config.optimizer='fast_run'
 train_filename = 'ionosphere/ionosphere.data'
-lr_begin = 0.5
+lr_begin = 10
 lr_annealing_T=1
 lr=None
 n_epochs = 10000
 sigma_x = 1.
-sigma_z = 1e4
+sigma_z = 1e2#1e4
 nonlinearity = T.nnet.sigmoid
 
 class Logger():
