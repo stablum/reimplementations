@@ -73,7 +73,9 @@ def make_vae(x_dim,z_dim,hid_dim):
     epsilon.name = 'epsilon'
     z_mu = z_dist[:,0:z_dim]
     z_mu.name = 'z_mu'
-    z_sigma = z_dist[:,z_dim:z_dim*2]
+    log_z_sigma = z_dist[:,z_dim:z_dim*2]
+    log_z_sigma.name = "log_z_sigma"
+    z_sigma = T.exp(log_z_sigma)
     z_sigma.name = 'z_sigma'
     z_sample = z_mu + (epsilon * z_sigma)
     z_sample.name = 'z_sample'
@@ -132,10 +134,12 @@ def train(X, params, params_update_fn, repeat=1):
     for xs in tqdm(partition(X)*repeat,desc="training"):
         step(xs, params, params_update_fn)
 
-def nll_sum(Z, X, Ws_vals, biases_vals, nll_fn):
+def obj_sum(X,obj_fn):
     ret = 0
-    for zs,xs in tqdm(partition_minibatches(Z,X),desc="nll_sum"):
-        curr, = nll_fn(*([zs, xs] + Ws_vals + biases_vals))
+
+    for i in tqdm(range(X.shape[1]),desc="obj_sum"):
+        x = X[:,[i]].T
+        curr, = obj_fn(x)
         ret += curr
     return ret
 
@@ -165,18 +169,16 @@ def test_classifier(Z,Y):
     svc_score = classifier.score(Z.T,Y[0,:])
     log("SVC score: %s"%svc_score)
 
-def generate_samples(epoch,Ws_vals,biases_vals,generate_fn):
+def generate_samples(epoch,generate_fn):
     log("generating a bunch of random samples")
-    _zs_l = []
-    for i in range(minibatch_size):
-        _z = np.random.normal(np.array([0]*z_dim),sigma_z).astype('float32')
-        _zs_l.append(_z)
-    _zs = np.vstack(_zs_l).T
-    samples = generate_fn(*([_zs]+Ws_vals+biases_vals))
-    log("generated samples. mean:",np.mean(samples),"std:",np.std(samples))
-    log("_zs",_zs)
+    samples = []
+    for i in range(10):
+        _z = np.random.normal(np.array([[0]*z_dim]),1).astype('float32')
+        sample = generate_fn(_z)
+        samples.append(sample)
+    samples_np = np.stack(samples,axis=2)
     filename = "random_samples_epoch_%d.npy"%(epoch)
-    np.save(filename, samples)
+    np.save(filename, samples_np)
     log("done generating random samples.")
 
 def main():
@@ -215,6 +217,7 @@ def main():
     # set up
     params,x_orig,x_out,z_mu,z_sigma,z_sample = make_vae(x_dim,z_dim,hid_dim)
     obj = build_obj(z_mu,z_sigma,z_sample,x_orig,x_out)
+    obj_fn = theano.function([x_orig],[obj])
     #minibatch_obj = T.sum(objs,axis=0)
 
     grads_params = [
@@ -225,11 +228,14 @@ def main():
     params_updates = lasagne.updates.adam(grads_params,params,learning_rate=lr)
     params_update_fn = theano.function([x_orig],[], updates=params_updates)
 
+    generate_fn = theano.function([z_sample],[x_out])
+
     def summary():
-        #total_nll = nll_sum(Z,X,Ws_vals,biases_vals,nll_fn)
+        total_obj = obj_sum(X,obj_fn)
         log("epoch %d"%epoch)
         log("harvest_dir",harvest_dir)
         log("lr %f"%lr)
+        log("total_obj: {}".format(total_obj))
         #log("total nll: {:,}".format(total_nll))
 
     log("done. epochs loop..")
@@ -247,9 +253,8 @@ def main():
     for epoch in range(n_epochs):
         X,Y = shuffle(X,Y)
         summary()
-        if epoch % 5 == 0:
-            print("(TODO)")
-            #generate_samples(epoch,Ws_vals,biases_vals,generate_fn)
+        if epoch % 1 == 0:
+            generate_samples(epoch,generate_fn)
             #save()
         train(X,params,params_update_fn,repeat=repeat_training)
     log("epochs loop ended")
