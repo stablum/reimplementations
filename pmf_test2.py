@@ -43,10 +43,10 @@ def main():
 
     def new_eij():
         ret = R[i,j] - np.dot(U[:,i].T, V[:,j])
-        print "eij",ret
+        #print "eij",ret
         return ret
 
-    for _ in xrange(1000000):
+    for _ in xrange(3000000):
         wis,wjs = np.where(-R.mask)
         pos = random.randint(0,len(wis)-1)
         i,j = wis[pos],wjs[pos]

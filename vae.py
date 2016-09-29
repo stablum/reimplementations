@@ -171,7 +171,9 @@ def obj_sum(X,obj_fn):
     return ret,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std
 
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
-    log_q_z_given_x = - 0.5*T.dot((1/(z_sigma+0.000001)), ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
+    z_sigma_fixed = z_sigma+0.001
+    z_sigma_inv = 1/(z_sigma_fixed)
+    log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
     det_z_sigma = T.prod(z_sigma)
     C = ((2*3.1415)**(z_dim/2)) * (det_z_sigma**2)
     q_z_given_x = C * T.exp(log_q_z_given_x)
@@ -182,16 +184,18 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
     return obj_scalar,[
-        reconstruction_error,
-        regularizer,
-        log_q_z_given_x,
-        det_z_sigma,
-        q_z_given_x,
-        log_p_x_given_z,
-        log_p_z,
-        z_sample,
-        z_mu,
-        z_sigma
+        reconstruction_error, #1
+        regularizer,#2
+        log_q_z_given_x,#3
+        det_z_sigma,#4
+        q_z_given_x,#5
+        log_p_x_given_z,#6
+        log_p_z,#7
+        z_sample,#8
+        z_mu,#9
+        z_sigma,#10,
+        z_sigma_inv,#11
+        z_sigma_fixed,#12
     ]
 
 def test_classifier(Z,Y):
