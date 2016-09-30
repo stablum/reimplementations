@@ -220,7 +220,7 @@ def generate_samples(epoch,generate_fn):
     log("generating a bunch of random samples")
     samples = []
     for i in range(10):
-        _z = np.random.normal(np.array([[0]*z_dim]),i).astype('float32')
+        _z = np.random.normal(np.array([[0]*z_dim]),(i+1.)/2.).astype('float32')
         sample = generate_fn(_z)
         samples.append(sample)
     samples_np = np.stack(samples,axis=2)
