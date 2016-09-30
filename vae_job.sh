@@ -2,6 +2,12 @@
 module add python/3.3.2
 module add python/default
 module add git/1.8.3.4
+module add opencl-nvidia/5.5
+module add cuda55/blas/5.5.22
+module add cuda55/fft/5.5.22
+module add cuda55/profiler/5.5.22
+module add cuda55/tdk/5.319.43
+module add cuda55/toolkit/5.5.22
 source ~/venv2/bin/activate
 cd reimplementations
 nvidia-smi
