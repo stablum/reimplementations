@@ -176,13 +176,13 @@ def obj_sum(X,obj_fn):
     return ret,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std
 
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
-    z_sigma_fixed = z_sigma+0.001
+    z_sigma_fixed = z_sigma
     z_sigma_inv = 1/(z_sigma_fixed)
     log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
     det_z_sigma = T.prod(z_sigma)
     C = ((2*3.1415)**(z_dim/2)) * (det_z_sigma**2)
     q_z_given_x = C * T.exp(log_q_z_given_x)
-    log_p_x_given_z = -(1/(x_sigma+0.000001))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
+    log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
     reconstruction_error = -(q_z_given_x * log_p_x_given_z)
     regularizer = -(q_z_given_x * log_p_z) + q_z_given_x * log_q_z_given_x
@@ -220,7 +220,7 @@ def generate_samples(epoch,generate_fn):
     log("generating a bunch of random samples")
     samples = []
     for i in range(10):
-        _z = np.random.normal(np.array([[0]*z_dim]),10).astype('float32')
+        _z = np.random.normal(np.array([[0]*z_dim]),i).astype('float32')
         sample = generate_fn(_z)
         samples.append(sample)
     samples_np = np.stack(samples,axis=2)
