@@ -12,6 +12,7 @@ import mnist # pip3 install python-mnist
 import os
 import sys
 import lasagne
+import math
 
 theano.config.exception_verbosity="high"
 theano.config.optimizer='None'
@@ -73,9 +74,12 @@ def make_vae(x_dim,z_dim,hid_dim):
     epsilon.name = 'epsilon'
     z_mu = z_dist[:,0:z_dim]
     z_mu.name = 'z_mu'
-    log_z_sigma = z_dist[:,z_dim:z_dim*2]
-    log_z_sigma.name = "log_z_sigma"
-    z_sigma = T.exp(log_z_sigma)
+
+    #log_z_sigma = z_dist[:,z_dim:z_dim*2]
+    #log_z_sigma.name = "log_z_sigma"
+    #z_sigma = T.exp(log_z_sigma)
+
+    z_sigma = z_dist[:,z_dim:z_dim*2]
     z_sigma.name = 'z_sigma'
     z_sample = z_mu + (epsilon * z_sigma)
     z_sample.name = 'z_sample'
@@ -136,25 +140,63 @@ def train(X, params, params_update_fn, repeat=1):
 
 def obj_sum(X,obj_fn):
     ret = 0
-
+    obj_min = float('inf')
+    obj_max = float('-inf')
+    objs = []
+    z_sigmas = []
+    z_mus = []
+    z_samples = []
     for i in tqdm(range(X.shape[1]),desc="obj_sum"):
         x = X[:,[i]].T
-        curr, = obj_fn(x)
-        ret += curr
-    return ret
+        obj_quantities = obj_fn(x)
+        obj = obj_quantities[0]
+        z_sigmas.append(obj_quantities[-1])
+        z_mus.append(obj_quantities[-2])
+        z_samples.append(obj_quantities[-3])
+        if math.isinf(obj):
+            print("obj is inf")
+            for i,q in enumerate(obj_quantities):
+                print(i,':',q)
+        objs.append(obj)
+        ret += obj
+        obj_min = min(obj_min,obj)
+        obj_max = max(obj_max,obj)
+    obj_median = np.median(objs)
+    z_sigmas_mean = np.mean(z_sigmas)
+    z_sigmas_std = np.std(z_sigmas)
+    z_mus_mean = np.mean(z_mus)
+    z_mus_std = np.std(z_mus)
+    z_samples_mean = np.mean(z_samples)
+    z_samples_std = np.std(z_samples)
+    return ret,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std
 
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
-    log_q_z_given_x = - 0.5*T.dot((1/z_sigma), ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
+    z_sigma_fixed = z_sigma+0.001
+    z_sigma_inv = 1/(z_sigma_fixed)
+    log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
     det_z_sigma = T.prod(z_sigma)
     C = ((2*3.1415)**(z_dim/2)) * (det_z_sigma**2)
     q_z_given_x = C * T.exp(log_q_z_given_x)
-    log_p_x_given_z = -(1/x_sigma)*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
+    log_p_x_given_z = -(1/(x_sigma+0.000001))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
     reconstruction_error = -(q_z_given_x * log_p_x_given_z)
-    regularizer = -(q_z_given_x * log_p_z) + log_q_z_given_x
+    regularizer = -(q_z_given_x * log_p_z) + q_z_given_x * log_q_z_given_x
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
-    return obj_scalar
+    return obj_scalar,[
+        reconstruction_error, #1
+        regularizer,#2
+        log_q_z_given_x,#3
+        det_z_sigma,#4
+        q_z_given_x,#5
+        log_p_x_given_z,#6
+        log_p_z,#7
+        z_sample,#8
+        z_mu,#9
+        z_sigma,#10,
+        z_sigma_inv,#11
+        z_sigma_fixed,#12
+    ]
 
 def test_classifier(Z,Y):
     #classifier = sklearn.svm.SVC()
@@ -173,7 +215,7 @@ def generate_samples(epoch,generate_fn):
     log("generating a bunch of random samples")
     samples = []
     for i in range(10):
-        _z = np.random.normal(np.array([[0]*z_dim]),1).astype('float32')
+        _z = np.random.normal(np.array([[0]*z_dim]),10).astype('float32')
         sample = generate_fn(_z)
         samples.append(sample)
     samples_np = np.stack(samples,axis=2)
@@ -216,8 +258,9 @@ def main():
     num_datapoints = X.shape[1]
     # set up
     params,x_orig,x_out,z_mu,z_sigma,z_sample = make_vae(x_dim,z_dim,hid_dim)
-    obj = build_obj(z_mu,z_sigma,z_sample,x_orig,x_out)
-    obj_fn = theano.function([x_orig],[obj])
+    obj,other_quantities = build_obj(z_mu,z_sigma,z_sample,x_orig,x_out)
+
+    obj_fn = theano.function([x_orig],[obj]+other_quantities)
     #minibatch_obj = T.sum(objs,axis=0)
 
     grads_params = [
@@ -231,11 +274,21 @@ def main():
     generate_fn = theano.function([z_sample],[x_out])
 
     def summary():
-        total_obj = obj_sum(X,obj_fn)
+        total_obj,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std = obj_sum(X,obj_fn)
+        print(z_sigmas_mean)
         log("epoch %d"%epoch)
         log("harvest_dir",harvest_dir)
         log("lr %f"%lr)
         log("total_obj: {}".format(total_obj))
+        log("obj_min: {}".format(obj_min))
+        log("obj_max: {}".format(obj_max))
+        log("obj_median: {}".format(obj_median))
+        log("z_sigmas_mean",z_sigmas_mean)
+        log("z_sigmas_std",z_sigmas_std)
+        log("z_mus_mean",z_mus_mean)
+        log("z_mus_std",z_mus_std)
+        log("z_samples_mean",z_samples_mean)
+        log("z_samples_std",z_samples_std)
         #log("total nll: {:,}".format(total_nll))
 
     log("done. epochs loop..")
