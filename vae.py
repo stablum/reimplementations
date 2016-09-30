@@ -14,14 +14,19 @@ import sys
 import lasagne
 import math
 
-theano.config.exception_verbosity="high"
-theano.config.optimizer='None'
+optimizer = "debug"
 
-#theano.config.optimizer='fast_run'
-#theano.config.openmp=False
-#theano.config.openmp_elemwise_minsize=10
-#theano.config.device='gpu'
-#theano.config.floatX='float32'
+if optimizer == "debug":
+    theano.config.exception_verbosity="high"
+    theano.config.optimizer='None'
+    theano.config.floatX='float32'
+elif optimizer == "gpu":
+    theano.config.optimizer='fast_run'
+    theano.config.openmp=False
+    theano.config.openmp_elemwise_minsize=10
+    theano.config.device='gpu'
+    theano.config.floatX='float32'
+
 lr=0.02
 n_epochs = 10000
 data_amplify = 0.5
@@ -66,7 +71,7 @@ def make_net(input_var,in_dim,hid_dim,out_dim,name=""):
     return net_output, net_params
 
 def make_vae(x_dim,z_dim,hid_dim):
-    print("make_vae with x_dim={},z_dim={},hid_dim={}".format(x_dim,z_dim,hid_dim))
+    print("make_vae with x_dim={},z_dim={},hid_dim={},g={}".format(x_dim,z_dim,hid_dim,g))
     x_orig = T.fmatrix('x_orig')
     z_dist,recog_params = make_net(x_orig,x_dim,hid_dim,z_dim*2,name="recog")
     z_dist.name="z_dist"
@@ -86,7 +91,7 @@ def make_vae(x_dim,z_dim,hid_dim):
     z_sample_reshaped = z_sample.reshape((z_dim,))
     x_out,gener_params = make_net(z_sample_reshaped,z_dim,hid_dim,x_dim,name="gener")
     params = recog_params + gener_params
-    return params,x_orig,x_out,z_mu,z_sigma,z_sample
+    return params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist
 
 def shuffle(X,Y):
     sel = np.arange(X.shape[1])
@@ -257,10 +262,10 @@ def main():
     x_dim = X.shape[0]
     num_datapoints = X.shape[1]
     # set up
-    params,x_orig,x_out,z_mu,z_sigma,z_sample = make_vae(x_dim,z_dim,hid_dim)
-    obj,other_quantities = build_obj(z_mu,z_sigma,z_sample,x_orig,x_out)
+    params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist = make_vae(x_dim,z_dim,hid_dim)
+    obj,other_quantities = build_obj(z_sample,z_mu,z_sigma,x_orig,x_out)
 
-    obj_fn = theano.function([x_orig],[obj]+other_quantities)
+    obj_fn = theano.function([x_orig],[obj]+other_quantities+[z_dist])
     #minibatch_obj = T.sum(objs,axis=0)
 
     grads_params = [
