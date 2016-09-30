@@ -158,8 +158,7 @@ def obj_sum(X,obj_fn):
         z_sigmas.append(obj_quantities[-1])
         z_mus.append(obj_quantities[-2])
         z_samples.append(obj_quantities[-3])
-        if math.isinf(obj):
-            print("obj is inf")
+        if math.isinf(obj) or i==0:
             for i,q in enumerate(obj_quantities):
                 print(i,':',q)
         objs.append(obj)
