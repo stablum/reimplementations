@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash --login
 #$ -l gpu=C2050
 module add python/3.3.2
 module add python/default
