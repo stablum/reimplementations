@@ -166,12 +166,12 @@ def obj_sum(X,obj_fn):
         obj_min = min(obj_min,obj)
         obj_max = max(obj_max,obj)
     obj_median = np.median(objs)
-    z_sigmas_mean = np.mean(z_sigmas)
-    z_sigmas_std = np.std(z_sigmas)
-    z_mus_mean = np.mean(z_mus)
-    z_mus_std = np.std(z_mus)
-    z_samples_mean = np.mean(z_samples)
-    z_samples_std = np.std(z_samples)
+    z_sigmas_mean = np.mean(z_sigmas,axis=0)
+    z_sigmas_std = np.std(z_sigmas,axis=0)
+    z_mus_mean = np.mean(z_mus,axis=0)
+    z_mus_std = np.std(z_mus,axis=0)
+    z_samples_mean = np.mean(z_samples,axis=0)
+    z_samples_std = np.std(z_samples,axis=0)
     return ret,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std
 
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
