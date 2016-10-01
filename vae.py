@@ -179,7 +179,7 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     z_sigma_inv = 1/(z_sigma_fixed)
     log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) # plus log(C) that can be omitted
     det_z_sigma = T.prod(z_sigma)
-    C = ((2*3.1415)**(z_dim/2)) * (det_z_sigma**2)
+    C = 1./(T.sqrt(((2*3.1415)**(z_dim/2)) * det_z_sigma))
     q_z_given_x = C * T.exp(log_q_z_given_x)
     log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
