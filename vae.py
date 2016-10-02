@@ -209,7 +209,7 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
     reconstruction_error = -(q_z_given_x * log_p_x_given_z)
-    regularizer = kl_normal_diagonal_vs_unit(mu_z,z_sigma,z_dim)
+    regularizer = kl_normal_diagonal_vs_unit(z_mu,z_sigma,z_dim)
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
     return obj_scalar,[
