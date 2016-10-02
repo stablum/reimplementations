@@ -174,6 +174,31 @@ def obj_sum(X,obj_fn):
     z_samples_std = np.std(z_samples,axis=0)
     return ret,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std
 
+def kl_normal_diagonal(mu1,sigma_diag1,mu2,sigma_diag2,dim):
+    det1 = T.prod(sigma_diag1)
+    det2 = T.prod(sigma_diag2)
+    inv_sigma_diag2 = 1/sigma_diag_2
+    mu_diff = mu2-mu1
+    ret = 0.5 * (
+        log(det2/det1)
+        - dim
+        + T.sum(inv_sigma_diag2*sigma_diag1)
+        + T.dot(T.dot(mu_diff.T,inv_sigma_diag2),mu_diff)
+    )
+    return ret
+
+def kl_normal_diagonal_vs_unit(mu1,sigma_diag1,dim):
+    # KL divergence of a multivariate normal over a normal with 0 mean and I cov
+    det1 = T.prod(sigma_diag1)
+    mu_diff = -mu1
+    ret = 0.5 * (
+        - log(det1)
+        - dim
+        + T.sum(sigma_diag1)
+        + T.sum(mu_diff**2)
+    )
+    return ret
+
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     z_sigma_fixed = z_sigma
     z_sigma_inv = 1/(z_sigma_fixed)
@@ -184,7 +209,7 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
     reconstruction_error = -(q_z_given_x * log_p_x_given_z)
-    regularizer = -(q_z_given_x * log_p_z) + q_z_given_x * log_q_z_given_x
+    regularizer = kl_normal_diagonal_vs_unit(mu_z,z_sigma,z_dim)
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
     return obj_scalar,[
