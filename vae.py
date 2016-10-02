@@ -192,7 +192,7 @@ def kl_normal_diagonal_vs_unit(mu1,sigma_diag1,dim):
     det1 = T.prod(sigma_diag1)
     mu_diff = -mu1
     ret = 0.5 * (
-        - log(det1)
+        - T.log(det1)
         - dim
         + T.sum(sigma_diag1)
         + T.sum(mu_diff**2)
