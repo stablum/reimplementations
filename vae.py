@@ -210,7 +210,9 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     q_z_given_x = C * T.exp(log_q_z_given_x)
     log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
-    reconstruction_error = 0.5*(x_dim*np.log(np.pi)+1).astype('float32') + 0.5*T.sum((x_orig-x_out)**2)
+    reconstruction_error_const = (0.5*(x_dim*np.log(np.pi)+1)).astype('float32')
+    reconstruction_error_proper = 0.5*T.sum((x_orig-x_out)**2)
+    reconstruction_error = reconstruction_error_const + reconstruction_error_proper
     regularizer = kl_normal_diagonal_vs_unit(z_mu,z_sigma,z_dim)
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
