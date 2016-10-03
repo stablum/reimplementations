@@ -15,4 +15,4 @@ cd reimplementations
 nvidia-smi
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/fstablum/.local/lib
 #THEANO_FLAGS=mode=FAST_RUN,device=gpu,init_gpu_device=gpu,floatX=float32,nvcc.flags=-D_FORCE_INLINES,print_active_device=True,enable_initial_driver_test=True,warn_float64=raise,force_device=True,assert_no_cpu_op=raise python3 vae.py 3 100 16 sigmoid
-python3 vae.py 3 100 16 sigmoid
+THEANO_FLAGS=warn_float64=raise python3 vae.py 3 100 16 sigmoid
