@@ -230,8 +230,7 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
         z_sigma_inv,#11
         z_sigma_fixed,#12
         C,#13
-        reconstruction_error_const,#14
-        reconstruction_error_proper,#15
+        reconstruction_error_proper,#14
     ]
 
 def test_classifier(Z,Y):
