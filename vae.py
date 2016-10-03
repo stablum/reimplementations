@@ -14,7 +14,7 @@ import sys
 import lasagne
 import math
 
-optimizer = "debug"
+optimizer = "gpu"
 
 if optimizer == "debug":
     theano_mode = 'DebugMode'
