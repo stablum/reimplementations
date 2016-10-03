@@ -49,7 +49,8 @@ possible_activations = {
 
     'gelu': lambda x : x*T.erf(x),
     'elu': T.nnet.elu,
-    'relu': T.nnet.relu
+    'relu': T.nnet.relu,
+    'linear': lasagne.nonlinearities.linear
 }
 
 class Logger():
@@ -75,7 +76,14 @@ def make_net(input_var,in_dim,hid_dim,out_dim,name="",output_nonlinearity=g):
 def make_vae(x_dim,z_dim,hid_dim):
     print("make_vae with x_dim={},z_dim={},hid_dim={},g={}".format(x_dim,z_dim,hid_dim,g))
     x_orig = T.fmatrix('x_orig')
-    z_dist,recog_params = make_net(x_orig,x_dim,hid_dim,z_dim*2,name="recog")
+    z_dist,recog_params = make_net(
+        x_orig,
+        x_dim,
+        hid_dim,
+        z_dim*2,
+        name="recog",
+        output_nonlinearity=lasagne.nonlinearities.linear
+    )
     z_dist.name="z_dist"
     epsilon = T.shared_randomstreams.RandomStreams().normal((z_dim,),avg=0.0,std=1.0)
     epsilon.name = 'epsilon'
