@@ -17,6 +17,7 @@ import math
 optimizer = "debug"
 
 if optimizer == "debug":
+    theano_mode = 'DebugMode'
     theano.config.exception_verbosity="high"
     theano.config.optimizer='None'
     theano.config.floatX='float32'
