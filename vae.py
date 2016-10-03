@@ -82,11 +82,11 @@ def make_vae(x_dim,z_dim,hid_dim):
     z_mu = z_dist[:,0:z_dim]
     z_mu.name = 'z_mu'
 
-    #log_z_sigma = z_dist[:,z_dim:z_dim*2]
-    #log_z_sigma.name = "log_z_sigma"
-    #z_sigma = T.exp(log_z_sigma)
+    log_z_sigma = z_dist[:,z_dim:z_dim*2]
+    log_z_sigma.name = "log_z_sigma"
+    z_sigma = T.exp(log_z_sigma)
 
-    z_sigma = z_dist[:,z_dim:z_dim*2]
+    #z_sigma = z_dist[:,z_dim:z_dim*2]
     z_sigma.name = 'z_sigma'
     z_sample = z_mu + (epsilon * z_sigma)
     z_sample.name = 'z_sample'
