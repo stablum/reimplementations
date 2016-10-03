@@ -25,7 +25,7 @@ elif optimizer == "gpu":
     theano.config.optimizer='fast_run'
     theano.config.openmp=False
     theano.config.openmp_elemwise_minsize=10
-    theano.config.device='gpu'
+    assert theano.config.device=='gpu',theano.config.device
     theano.config.floatX='float32'
 
 lr=0.02
