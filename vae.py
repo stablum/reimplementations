@@ -33,6 +33,7 @@ data_amplify = 0.5
 data_offset = 0.25
 x_sigma = 1
 z_dim = None
+x_dim = None
 hid_dims = None
 activation_function = None
 minibatch_size = None
@@ -208,7 +209,7 @@ def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
     q_z_given_x = C * T.exp(log_q_z_given_x)
     log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
     log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
-    reconstruction_error = -(q_z_given_x * log_p_x_given_z)
+    reconstruction_error = 0.5*(x_dim*np.log(np.pi)+1) + 0.5*T.sum((x_orig-x_out)**2)
     regularizer = kl_normal_diagonal_vs_unit(z_mu,z_sigma,z_dim)
     obj = reconstruction_error + regularizer
     obj_scalar = obj.reshape((),ndim=0)
@@ -256,6 +257,7 @@ def generate_samples(epoch,generate_fn):
 def main():
     global log
     global z_dim
+    global x_dim
     global hid_dims
     global minibatch_size
     global activation_function
