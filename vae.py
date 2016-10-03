@@ -63,11 +63,11 @@ class Logger():
 
 log = None
 
-def make_net(input_var,in_dim,hid_dim,out_dim,name=""):
+def make_net(input_var,in_dim,hid_dim,out_dim,name="",output_nonlinearity=g):
     input_var_reshaped = input_var.reshape((1, in_dim))
     l_in = lasagne.layers.InputLayer((1,in_dim),input_var=input_var_reshaped,name=name+"_in")
     l_hid = lasagne.layers.DenseLayer(l_in,hid_dim,nonlinearity=g,name=name+"_hid")
-    l_out = lasagne.layers.DenseLayer(l_hid,out_dim,nonlinearity=g,name=name+"_out")
+    l_out = lasagne.layers.DenseLayer(l_hid,out_dim,nonlinearity=output_nonlinearity,name=name+"_out")
     net_output = lasagne.layers.get_output(l_out)
     net_params = lasagne.layers.get_all_params([l_in,l_hid,l_out])
     return net_output, net_params
