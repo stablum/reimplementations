@@ -28,7 +28,7 @@ elif optimizer == "gpu":
     assert theano.config.device=='gpu',theano.config.device
     theano.config.floatX='float32'
 
-lr=0.02
+lr=0.00001#0.02
 n_epochs = 10000
 data_amplify = 0.5
 data_offset = 0.25
