@@ -133,7 +133,7 @@ def update(learnable, grad):
     learnable -= lr * grad
 
 def sample_epsilon():
-    np.random.normal(0,1,(z_dim,)).astype('float32')
+    return np.random.normal(0,1,(z_dim,)).astype('float32')
 
 def step(xs, params, params_update_fn):
     for i in range(xs.shape[1]):
