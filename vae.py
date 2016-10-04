@@ -96,7 +96,7 @@ def make_vae(x_dim,z_dim,hid_dim):
 
     #z_sigma = z_dist[:,z_dim:z_dim*2]
     z_sigma.name = 'z_sigma'
-    z_sample = z_mu + (epsilon * z_sigma)
+    z_sample = z_mu + (epsilon * (z_sigma**0.5))
     z_sample.name = 'z_sample'
     z_sample_reshaped = z_sample.reshape((z_dim,))
     x_out,gener_params = make_net(z_sample_reshaped,z_dim,hid_dim,x_dim,name="gener")
