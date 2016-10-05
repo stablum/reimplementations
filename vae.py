@@ -288,6 +288,7 @@ def main():
         activation_name,
         random_int
     )
+    log = Logger("{}/vaelog".format(harvest_dir)) # notice: before chdir to harvest_dir
     np.set_printoptions(precision=4, suppress=True)
     X,Y,X_test,Y_test = load_data() # needs to be before cd
     try:
@@ -298,7 +299,6 @@ def main():
     for curr in [sys.argv[0],"config.py","vae_job.sh","engage.sh"]:
         os.system("cp %s %s -vf"%(curr,harvest_dir+"/"))
     os.chdir(harvest_dir)
-    log = Logger("{}/vaelog".format(harvest_dir))
     log("sys.argv",sys.argv)
     x_dim = X.shape[0]
     num_datapoints = X.shape[1]
