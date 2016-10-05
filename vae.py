@@ -40,6 +40,7 @@ activation_function = None
 minibatch_size = None
 repeat_training=1
 g=None # activation function
+log = None
 
 possible_activations = {
     'sigmoid': T.nnet.sigmoid,
@@ -62,8 +63,6 @@ class Logger():
         print(*args, flush=True)
         print(*args,file=self.f, flush=True)
 
-log = None
-
 def make_net(input_var,in_dim,hid_dim,out_dim,name="",output_nonlinearity=g):
     input_var_reshaped = input_var.reshape((1, in_dim))
     l_in = lasagne.layers.InputLayer((1,in_dim),input_var=input_var_reshaped,name=name+"_in")
@@ -74,7 +73,7 @@ def make_net(input_var,in_dim,hid_dim,out_dim,name="",output_nonlinearity=g):
     return net_output, net_params
 
 def make_vae(x_dim,z_dim,hid_dim):
-    print("make_vae with x_dim={},z_dim={},hid_dim={},g={}".format(x_dim,z_dim,hid_dim,g))
+    log("make_vae with x_dim={},z_dim={},hid_dim={},g={}".format(x_dim,z_dim,hid_dim,g))
     x_orig = T.fmatrix('x_orig')
     z_dist,recog_params = make_net(
         x_orig,
@@ -119,14 +118,14 @@ def fix_data(features,labels):
     return X,Y
 
 def load_data():
-    print("setting up mnist loader..")
+    log("setting up mnist loader..")
     _mnist = mnist.MNIST(path='./python-mnist/data')
-    print("loading training data..")
+    log("loading training data..")
     X_train,Y_train = fix_data(*_mnist.load_training())
-    print("X_train.shape=",X_train.shape,"Y_train.shape=",Y_train.shape)
-    print("loading testing data..")
+    log("X_train.shape=",X_train.shape,"Y_train.shape=",Y_train.shape)
+    log("loading testing data..")
     X_test,Y_test = fix_data(*_mnist.load_testing())
-    print("X_test.shape=",X_test.shape,"Y_test.shape=",Y_test.shape)
+    log("X_test.shape=",X_test.shape,"Y_test.shape=",Y_test.shape)
     return X_train, Y_train, X_test, Y_test
 
 def update(learnable, grad):
@@ -175,7 +174,7 @@ def obj_sum(X,obj_fn):
         z_samples.append(obj_quantities[8])
         if math.isinf(obj) or i==0:
             for i,q in enumerate(obj_quantities):
-                print(i,':',q)
+                log(i,':',q)
         objs.append(obj)
         ret += obj
         obj_min = min(obj_min,obj)
@@ -286,22 +285,25 @@ def main():
     activation_name = sys.argv[4]
     g = possible_activations[activation_name]
 
-    harvest_dir = "harvest_zdim{}_hdim_{}_minibatch_size_{}_activation_{}".format(
+    random_int = numpy.random.randint(0,1000000)
+    harvest_dir = "harvest_zdim{}_hdim_{}_minibatch_size_{}_activation_{}_{}".format(
         z_dim,
         hid_dim,
         minibatch_size,
-        activation_name
+        activation_name,
+        random_int
     )
     np.set_printoptions(precision=4, suppress=True)
     X,Y,X_test,Y_test = load_data() # needs to be before cd
     try:
         os.mkdir(harvest_dir)
     except OSError as e: # directory already exists. It's ok.
-        print(e)
+        log(e)
 
-    os.system("cp %s %s -vf"%(sys.argv[0],harvest_dir+"/"))
+    for curr in [sys.argv[0],"config.py","vae_job.sh","engage.sh"]:
+        os.system("cp %s %s -vf"%(curr,harvest_dir+"/"))
     os.chdir(harvest_dir)
-    log = Logger()
+    log = Logger("{}/vaelog".format(harvest_dir))
     log("sys.argv",sys.argv)
     x_dim = X.shape[0]
     num_datapoints = X.shape[1]
@@ -324,7 +326,6 @@ def main():
 
     def summary():
         total_obj,obj_min,obj_max,obj_median,z_sigmas_mean,z_sigmas_std,z_mus_mean,z_mus_std,z_samples_mean,z_samples_std = obj_sum(X,obj_fn)
-        print(z_sigmas_mean)
         log("epoch %d"%epoch)
         log("harvest_dir",harvest_dir)
         log("lr %f"%lr)
