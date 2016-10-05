@@ -215,14 +215,14 @@ def kl_normal_diagonal_vs_unit(mu1,sigma_diag1,dim):
     return ret
 
 def build_obj(z_sample,z_mu,z_sigma,x_orig,x_out):
-    #z_sigma_fixed = z_sigma
-    #z_sigma_inv = 1/(z_sigma_fixed)
-    #det_z_sigma = T.prod(z_sigma)
-    #C = 1./(T.sqrt(((2*np.pi)**z_dim) * det_z_sigma))
-    #log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) + T.log(C) # log(C) can be omitted
-    #q_z_given_x = C * T.exp(log_q_z_given_x)
-    #log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
-    #log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
+    z_sigma_fixed = z_sigma
+    z_sigma_inv = 1/(z_sigma_fixed)
+    det_z_sigma = T.prod(z_sigma)
+    C = 1./(T.sqrt(((2*np.pi)**z_dim) * det_z_sigma))
+    log_q_z_given_x = - 0.5*T.dot(z_sigma_inv, ((z_sample-z_mu)**2).T) + T.log(C) # log(C) can be omitted
+    q_z_given_x = C * T.exp(log_q_z_given_x)
+    log_p_x_given_z = -(1/(x_sigma))*(((x_orig-x_out)**2).sum()) # because p(x|z) is gaussian
+    log_p_z = - (z_sample**2).sum() # gaussian prior with mean 0 and cov I
     #reconstruction_error_const = (0.5*(x_dim*np.log(np.pi)+1)).astype('float32')
     reconstruction_error_proper = 0.5*T.sum((x_orig-x_out)**2)
     reconstruction_error = reconstruction_error_proper #+ reconstruction_error_const
