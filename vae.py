@@ -280,7 +280,7 @@ def main():
     activation_name = sys.argv[4]
     g = possible_activations[activation_name]
 
-    random_int = numpy.random.randint(0,1000000)
+    random_int = np.random.randint(0,1000000)
     harvest_dir = "harvest_zdim{}_hdim_{}_minibatch_size_{}_activation_{}_{}".format(
         z_dim,
         hid_dim,
