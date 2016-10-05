@@ -84,7 +84,7 @@ def make_vae(x_dim,z_dim,hid_dim):
         output_nonlinearity=lasagne.nonlinearities.linear
     )
     z_dist.name="z_dist"
-    epsilon = T.fvector('epsilon')
+    epsilon = T.shared_randomstreams.RandomStreams().normal((z_dim,),avg=0.0,std=1.0)
     epsilon.name = 'epsilon'
     z_mu = z_dist[:,0:z_dim]
     z_mu.name = 'z_mu'
@@ -100,7 +100,7 @@ def make_vae(x_dim,z_dim,hid_dim):
     z_sample_reshaped = z_sample.reshape((z_dim,))
     x_out,gener_params = make_net(z_sample_reshaped,z_dim,hid_dim,x_dim,name="gener")
     params = recog_params + gener_params
-    return params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist,epsilon
+    return params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist
 
 def shuffle(X,Y):
     sel = np.arange(X.shape[1])
@@ -131,14 +131,10 @@ def load_data():
 def update(learnable, grad):
     learnable -= lr * grad
 
-def sample_epsilon():
-    return np.random.normal(0,1,(z_dim,)).astype('float32')
-
 def step(xs, params, params_update_fn):
     for i in range(xs.shape[1]):
         x = xs[:,[i]].T
-        epsilon = sample_epsilon()
-        params_update_fn(x,epsilon)
+        params_update_fn(x)
 
 def partition(a):
     assert type(a) is np.ndarray
@@ -166,8 +162,7 @@ def obj_sum(X,obj_fn):
     z_samples = []
     for i in tqdm(range(X.shape[1]),desc="obj_sum"):
         x = X[:,[i]].T
-        epsilon = sample_epsilon()
-        obj_quantities = obj_fn(x,epsilon)
+        obj_quantities = obj_fn(x)
         obj = obj_quantities[0]
         z_sigmas.append(obj_quantities[10])
         z_mus.append(obj_quantities[9])
@@ -308,10 +303,10 @@ def main():
     x_dim = X.shape[0]
     num_datapoints = X.shape[1]
     # set up
-    params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist,epsilon = make_vae(x_dim,z_dim,hid_dim)
+    params,x_orig,x_out,z_mu,z_sigma,z_sample,z_dist = make_vae(x_dim,z_dim,hid_dim)
     obj,other_quantities = build_obj(z_sample,z_mu,z_sigma,x_orig,x_out)
 
-    obj_fn = theano.function([x_orig,epsilon],[obj]+other_quantities+[z_dist])
+    obj_fn = theano.function([x_orig],[obj]+other_quantities+[z_dist])
     #minibatch_obj = T.sum(objs,axis=0)
 
     grads_params = [
@@ -320,7 +315,7 @@ def main():
         in params
     ]
     params_updates = lasagne.updates.adam(grads_params,params,learning_rate=lr)
-    params_update_fn = theano.function([x_orig,epsilon],[], updates=params_updates)
+    params_update_fn = theano.function([x_orig],[], updates=params_updates)
 
     generate_fn = theano.function([z_sample],[x_out])
 
