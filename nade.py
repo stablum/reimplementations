@@ -70,7 +70,7 @@ def make_nade(D,z_dim):
 
         x_i = x[i,0]
 
-        W_col_vals = np.random.normal(0,1,size=(z_dim,1))
+        W_col_vals = np.random.normal(0,1,size=(z_dim,1)).astype('float32')
         W_col = theano.shared(W_col_vals,name="W_col_%d"%(i+1))
         W_cols.append(W_col)
 
