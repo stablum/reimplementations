@@ -62,7 +62,7 @@ def make_nade(D,z_dim):
     a_s = []
     hs = []
     bs = []
-    c_vals = np.random.normal(0,1,size=(z_dim,1))
+    c_vals = np.random.normal(0,1,size=(z_dim,1)).astype('float32')
     c = theano.shared(c_vals,name="c")
     a_s.append(c)
     p_x = 1
@@ -79,11 +79,11 @@ def make_nade(D,z_dim):
         hi = g(a_s[i+1])
         hs.append(hi)
 
-        b_i_val = np.random.normal(0,1,size=(1,1))
+        b_i_val = np.random.normal(0,1,size=(1,1)).astype('float32')
         b_i = theano.shared(b_i_val,name="b_i_%d"%(i+1))
         bs.append(b_i)
 
-        V_row_vals = np.random.normal(0,1,size=(1,D))
+        V_row_vals = np.random.normal(0,1,size=(1,D)).astype('float32')
         V_row = theano.shared(V_row_vals,name="V_row_%d"%(i+1))
 
         p_x_cond = g(T.dot(V_row,hi) + b_i)

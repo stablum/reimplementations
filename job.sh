@@ -17,7 +17,7 @@ module add cuda55/profiler/5.5.22
 module add cuda55/tdk/5.319.43
 module add cuda55/toolkit/5.5.22
 source ~/venv2/bin/activate
-cd thesis
+cd reimplementations
 nvidia-smi
 echo -n "hostname:"
 hostname
