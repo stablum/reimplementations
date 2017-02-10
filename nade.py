@@ -16,7 +16,7 @@ import math
 
 sys.setrecursionlimit(20000)
 
-optimizer = "debug"
+optimizer = "gpu"
 
 if optimizer == "debug":
     theano_mode = 'DebugMode'
@@ -57,40 +57,69 @@ def make_nade(D,z_dim):
     log("make_nade with D={},z_dim={},g={}".format(D,z_dim,g))
     x = T.fmatrix('x')
 
-    W_cols = []
-    V_rows = []
-    a_s = []
-    hs = []
-    bs = []
-    c_vals = np.random.normal(0,1,size=(z_dim,1)).astype('float32')
+    c_vals = np.random.normal(0,1,size=(z_dim,)).astype('float32')
     c = theano.shared(c_vals,name="c")
-    a_s.append(c)
     p_x = 1
+
+    def a_adder(W_col_T,x_i,acc):
+        W_col_T.name = "W_col_T"
+        prod = W_col_T * T.sum(x_i)
+        prod.name = "prod"
+        ret_T = acc.T + prod
+        return ret_T.T
+
+    """
     for i in range(D):
-
-        x_i = x[i,0]
-
         W_col_vals = np.random.normal(0,1,size=(z_dim,1)).astype('float32')
         W_col = theano.shared(W_col_vals,name="W_col_%d"%(i+1))
         W_cols.append(W_col)
+    """
+    W_vals = np.random.normal(0,1,size=(z_dim,D)).astype('float32')
+    W = theano.shared(W_vals,name="W")
 
-        a_s.append(a_s[i] + W_col * x_i)
+    a_s,_u = theano.scan(
+        fn=a_adder,
+        outputs_info=c,
+        sequences = [ W.T,
+                      x
+                    ]
+        )
+    V_vals = np.random.normal(0,1,size=(D,z_dim)).astype('float32')
+    V = theano.shared(V_vals,name="V")
 
-        hi = g(a_s[i+1])
-        hs.append(hi)
+    hs = g(a_s)
 
-        b_i_val = np.random.normal(0,1,size=(1,1)).astype('float32')
-        b_i = theano.shared(b_i_val,name="b_i_%d"%(i+1))
-        bs.append(b_i)
+    b_val = np.random.normal(0,1,size=(D,1)).astype('float32')
+    b = theano.shared(b_val,name="b")
 
-        V_row_vals = np.random.normal(0,1,size=(1,D)).astype('float32')
-        V_row = theano.shared(V_row_vals,name="V_row_%d"%(i+1))
-
+    def scan_p_x_cond(V_row,hi,b_i):
         p_x_cond = g(T.dot(V_row,hi) + b_i)
-        p_x_cond_obs = x_i * p_x_cond + (1-x_i) * (1-p_x_cond)
-        p_x = p_x * p_x_cond_obs
+        return p_x_cond
 
-    return (W_cols,c,V_rows,bs),x,hs,p_x
+    p_x_cond,_u = theano.map(
+        fn=scan_p_x_cond,
+        sequences=[
+            V,
+            hs,
+            b
+        ]
+    )
+
+    def scan_p_x_cond_obs(x_i,p):
+        ret = x_i * p + (1-x_i) * (1-p)
+        return ret
+
+    p_x_cond_obs,_u = theano.map(
+        fn=scan_p_x_cond_obs,
+        sequences=[
+            x,
+            p_x_cond
+        ]
+    )
+
+    p_x = T.prod(p_x_cond_obs)
+
+    return (W,c,V,b),x,hs,p_x
 
 def make_xcond(z_dummy,W):
     global g
@@ -214,18 +243,17 @@ def main():
     num_datapoints = X.shape[1]
     # set up
     params,x,hs,p_x = make_nade(x_dim,z_dim)
-    (W_cols,c,V_rows,bs) = params
-    params_flat = W_cols+[c]+V_rows+bs
+    (W,c,V,b) = params
 
     nll = T.sum(- T.log(p_x))
     grads = []
-    for param in tqdm(params_flat):
+    for param in tqdm(params):
         print("gradient of param "+param.name)
         grad = T.grad(nll,param)
         grad.name = "grad_"#+param.name
         grads.append(grad)
 
-    params_updates = lasagne.updates.adam(grads,params_flat,learning_rate=lr)
+    params_updates = lasagne.updates.adam(grads,params,learning_rate=lr)
     # pseudo-contrastive params_update_fn = theano.function([x,z],[], updates=params_updates)
     params_update_fn = theano.function([x],nll, updates=params_updates)
     params_update_fn.name="params_update_fn"
@@ -241,7 +269,7 @@ def main():
 
     def log_shared(qs):
         if type(qs) not in (list,tuple):
-            qs = [q]
+            qs = [qs]
         for q in qs:
             log(q.name+": mean:{}, std:{}".format(
                 np.mean(q.eval()),
@@ -252,7 +280,7 @@ def main():
         log("epoch %d"%epoch)
         log("harvest_dir",harvest_dir)
         log("lr %f"%lr)
-        log_shared(W_cols)
+        log_shared(W)
 
     log("done. epochs loop..")
 
