@@ -16,7 +16,7 @@ import math
 
 sys.setrecursionlimit(20000)
 
-optimizer = "fast_cpu"
+optimizer = "gpu"
 
 if optimizer == "debug":
     theano_mode = 'DebugMode'
@@ -25,10 +25,14 @@ if optimizer == "debug":
     theano.config.floatX='float32'
 elif optimizer == "gpu":
     theano.config.optimizer='fast_run'
-    theano.config.openmp=False
-    theano.config.openmp_elemwise_minsize=10
-    assert theano.config.device=='gpu',theano.config.device
+    theano.config.openmp=True
+    theano.config.openmp_elemwise_minsize=4
+    #theano.config.device='gpu'
     theano.config.floatX='float32'
+    theano.config.assert_no_cpu_op='raise'
+    theano.config.allow_gc=False
+    theano.config.nvcc.fastmath=True
+    assert theano.config.device=='gpu',theano.config.device
 elif optimizer == "fast_cpu":
     theano.config.optimizer='fast_run'
     theano.config.floatX='float32'
