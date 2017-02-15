@@ -16,7 +16,7 @@ import math
 
 sys.setrecursionlimit(20000)
 
-optimizer = "gpu"
+optimizer = "fast_cpu"
 
 if optimizer == "debug":
     theano_mode = 'DebugMode'
@@ -28,6 +28,9 @@ elif optimizer == "gpu":
     theano.config.openmp=False
     theano.config.openmp_elemwise_minsize=10
     assert theano.config.device=='gpu',theano.config.device
+    theano.config.floatX='float32'
+elif optimizer == "fast_cpu":
+    theano.config.optimizer='fast_run'
     theano.config.floatX='float32'
 
 lr=0.0001#0.02
@@ -57,7 +60,7 @@ def make_nade(D,z_dim):
     log("make_nade with D={},z_dim={},g={}".format(D,z_dim,g))
     x = T.fmatrix('x')
 
-    c_vals = np.random.normal(0,1,size=(z_dim,)).astype('float32')
+    c_vals = np.random.normal(0,1,size=(1,z_dim)).astype('float32')
     c = theano.shared(c_vals,name="c")
     p_x = 1
 
@@ -77,13 +80,16 @@ def make_nade(D,z_dim):
     W_vals = np.random.normal(0,1,size=(z_dim,D)).astype('float32')
     W = theano.shared(W_vals,name="W")
 
-    a_s,_u = theano.scan(
+    a_s_W,_u = theano.scan(
         fn=a_adder,
-        outputs_info=c,
+        outputs_info=c[0,:],
         sequences = [ W.T,
                       x
                     ]
         )
+    a_s_excess = T.concatenate([c,a_s_W],axis=0)
+    a_s = a_s_excess[:D,:]
+
     V_vals = np.random.normal(0,1,size=(D,z_dim)).astype('float32')
     V = theano.shared(V_vals,name="V")
 
@@ -117,9 +123,11 @@ def make_nade(D,z_dim):
         ]
     )
 
+    nll = - T.sum(T.log(p_x_cond_obs))
+
     p_x = T.prod(p_x_cond_obs)
 
-    return (W,c,V,b),x,hs,p_x
+    return (W,c,V,b),x,hs,p_x,nll,p_x_cond
 
 def make_xcond(z_dummy,W):
     global g
@@ -165,7 +173,8 @@ def step(xs, params, params_update_fn):
     nll = 0
     for i in range(xs.shape[1]):
         orig_x = xs[:,[i]]
-        nll += params_update_fn(orig_x)
+        curr_nll,curr_p_x = params_update_fn(orig_x)
+        nll += curr_nll
     return nll
 
 def partition(a):
@@ -181,11 +190,16 @@ def partition(a):
     ]
 
 def train(X, params, params_update_fn, repeat=1):
-    nll = 0
+    _sum = 0
     for xs in tqdm(partition(X)*repeat,desc="training"):
         # pseudo-contrastive err += step(xs, params, params_update_fn, zcond_fn, xcond_fn, params_contr_update_fn)
-        nll += step(xs, params, params_update_fn)
-    return nll
+        step_nll = step(xs, params, params_update_fn)
+        average_nll = step_nll / xs.shape[1]
+        log("step average nll:{}".format(average_nll))
+
+        _sum += step_nll
+    ret = _sum / X.shape[1]
+    return ret
 
 def test_classifier(Z,Y):
     #classifier = sklearn.svm.SVC()
@@ -199,6 +213,28 @@ def test_classifier(Z,Y):
     log("done. Scoring..")
     svc_score = classifier.score(Z.T,Y[0,:])
     log("SVC score: %s"%svc_score)
+
+def test_nll(X_test,test_nll_fn,repeat=1):
+    _sum = 0.
+    for xs in tqdm(partition(X_test)*repeat,desc="testing"):
+        for i in range(xs.shape[1]):
+            x = xs[:,[i]]
+            nll, p_x = test_nll_fn(x)
+            _sum += nll
+
+    ret = _sum/X_test.shape[1]
+    return ret
+
+def noise_nll(test_nll_fn):
+    global x_dim
+    _sum = 0.
+    amount = 1000
+    for i in tqdm(range(amount),desc="noise"):
+        x = np.random.binomial(1,0.5,size=(x_dim,1)).astype('float32')
+        nll, p_x = test_nll_fn(x)
+        _sum += nll
+    ret = _sum / amount
+    return ret
 
 def draw_samples(epoch,xcond_fn):
     log("generating a bunch of random samples")
@@ -242,30 +278,29 @@ def main():
     x_dim = X.shape[0]
     num_datapoints = X.shape[1]
     # set up
-    params,x,hs,p_x = make_nade(x_dim,z_dim)
+    params,x,hs,p_x, nll, p_x_cond= make_nade(x_dim,z_dim)
+    log("made nade")
     (W,c,V,b) = params
 
-    nll = T.sum(- T.log(p_x))
     grads = []
     for param in tqdm(params):
-        print("gradient of param "+param.name)
+        log("gradient of param "+param.name)
         grad = T.grad(nll,param)
         grad.name = "grad_"#+param.name
         grads.append(grad)
 
     params_updates = lasagne.updates.adam(grads,params,learning_rate=lr)
     # pseudo-contrastive params_update_fn = theano.function([x,z],[], updates=params_updates)
-    params_update_fn = theano.function([x],nll, updates=params_updates)
+    params_update_fn = theano.function([x],[nll,p_x], updates=params_updates)
     params_update_fn.name="params_update_fn"
 
+    test_nll_fn = theano.function([x],[nll,p_x])
+    gen_fn = theano.function([hs],p_x_cond)
     def generate_and_save(epoch):
-        z_random = np.random.uniform(0,1,(z_dim,1)).astype('float32')
-        xcond_gen = xcond_fn(z_random)
-        filename = "nade_xcond_epoch_{0:04d}.npy".format(epoch)
-        np.save(filename, xcond_gen)
-        xsample_gen = xsample_fn(z_random)
-        filename = "nade_xsample_epoch_{0:04d}.npy".format(epoch)
-        np.save(filename, xsample_gen)
+        hs_random = np.random.uniform(0,1,(x_dim,z_dim)).astype('float32')
+        samples = gen_fn(hs_random)
+        filename = "nade_samples_epoch_{0:04d}.npy".format(epoch)
+        np.save(filename,samples)
 
     def log_shared(qs):
         if type(qs) not in (list,tuple):
@@ -288,10 +323,13 @@ def main():
     for epoch in range(n_epochs):
         X,Y = shuffle(X,Y)
         summary()
-        #generate_and_save(epoch)
+        generate_and_save(epoch)
+        nll_noise = noise_nll(test_nll_fn)
+        log("epoch average noise nll:", nll_noise)
+        nll_test = test_nll(X_test,test_nll_fn)
+        log("epoch average test nll:", nll_test)
         nll = train(X,params,params_update_fn,repeat=repeat_training)
-
-        log("nll",nll)
+        log("epoch average training nll:", nll)
     log("epochs loop ended")
     summary()
 
